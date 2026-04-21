@@ -3,6 +3,11 @@ import random
 import json
 import os
 
+password = st.text_input("パスワードを入力", type="password")
+
+if password != "classA":
+    st.stop()
+
 st.title("席替えアプリ")
 st.write("ボタンを押して席替え！")
 
