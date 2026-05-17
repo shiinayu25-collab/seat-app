@@ -35,10 +35,12 @@ def render_table(table_data):
     st.markdown(html, unsafe_allow_html=True)
 def load_data():
     if os.path.exists("seats.json"):
-        with open("seats.json", "r", encoding="utf-8") as f:
-            return json.load(f)
+        try:
+            with open("seats.json", "r", encoding="utf-8") as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            return None
     return None
-
 
 def save_data(data):
     with open("seats.json", "w", encoding="utf-8") as f:
