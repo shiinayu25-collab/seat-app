@@ -3,96 +3,154 @@ import random
 import json
 import os
 
-password = st.text_input("パスワードを入力", type="password")
+ROWS = 5
+COLS = 6
+TOTAL = 26
 
-if password != "classA":
-    st.stop()
+def render_table(table_data):
+
+    html = "<table style='border-collapse: collapse; margin:auto;'>"
+
+    for row in table_data:
+        html += "<tr>"
+
+        for cell in row:
+
+            if cell == 0:
+                bg = "#f0f0f0"
+                text = ""
+            elif 1 <= cell <= 13:
+                bg = "#d0e8ff"
+                text = str(cell)
+            else:
+                bg = "#ffd6e7"
+                text = str(cell)
+
+            html += f"<td style='border:1px solid #999; width:60px; height:60px; text-align:center; vertical-align:middle; font-size:18px; background-color:{bg};'>{text}</td>"
+
+        html += "</tr>"
+
+    html += "</table>"
+
+    st.markdown(html, unsafe_allow_html=True)
+def load_data():
+    if os.path.exists("seats.json"):
+        with open("seats.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    return None
+
+
+def save_data(data):
+    with open("seats.json", "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+saved_seats = load_data()
 
 st.title("席替えアプリ")
-st.write("ボタンを押して席替え！")
 
-st.markdown("""
-<style>
-td {
-    text-align: center !important;
-}
-</style>
-""", unsafe_allow_html=True)
+password=st.text_input(" パスワードを入力",type="password")
+if password !="classA":
+    st.stop()
 
-students = list(range(1,27))
 
-boys = students[:13].copy()
-girls = students[13:].copy()
+mode = st.radio(
+    "モード",
+    ["前回の席を使う", "席を編集する"]
+)
 
-saved_seats=None
-if os.path.exists("seats.json") and os.path.getsize("seats.json") > 0:
-    with open("seats.json", "r") as f:
-        try:
-            saved_seats = json.load(f)
-            st.write("前回の座席")
-            st.table(saved_seats)
-        except json.JSONDecodeError:
-            saved_seats = None
+seat_layout = None
 
-if "current_result" not in st.session_state:
-    st.session_state.current_result = None
 
-            
-if st.button("席替えする"):
+if mode == "前回の席を使う":
+    if saved_seats:
+        st.write("前回の席")
+        render_table(saved_seats)
+        seat_layout = saved_seats
+    else:
+        st.warning("データがありません")
 
-    for _ in range(100):
-        random.shuffle(boys)
-        random.shuffle(girls)
 
-        seats = [
-            ["男", "女", "男", "女","男","女"],
-            ["男", "女", "男", "女","男","女"],
-            ["女", "男", "女", "男","女","男"],
-            ["女", "男", "女", "男","女","男"],
-            [ "",  "男", "女", "", "", ""],
-        ]
+else:
+    st.write("0=空席 / 1-13=男 / 14-26=女")
+
+    default = saved_seats if saved_seats else [[0]*COLS for _ in range(ROWS)]
+
+    seat_layout = []
+
+    for i in range(ROWS):
+        row = []
+        for j in range(COLS):
+
+            value = st.number_input(
+                f"{i+1}-{j+1}",
+                min_value=0,
+                max_value=26,
+                value=int(default[i][j]),
+                step=1,
+                key=f"cell_{i}_{j}"
+            )
+
+            row.append(int(value))
+
+        seat_layout.append(row)
+
+    st.write("現在の席")
+    render_table(seat_layout)
+
+fixed = st.multiselect(
+    "固定したい番号",
+    list(range(1, 27))
+)
+
+if seat_layout:
+
+    boys = list(range(1, 14))
+    girls = list(range(14, 27))
+
+    random.shuffle(boys)
+    random.shuffle(girls)
+
+    if st.button("席替えする"):
 
         boy_i = 0
         girl_i = 0
         result = []
 
-        for col in seats:
-            row_result = []
-            for s in col:
-                if s == "男":
-                    row_result.append(boys[boy_i])
+        for row in seat_layout:
+            new_row = []
+
+            for cell in row:
+                if cell in fixed:
+                    new_row.append(cell)
+
+                elif 1 <= cell <= 13:
+                    new_row.append(boys[boy_i])
                     boy_i += 1
-                elif s=="女":
-                    row_result.append(girls[girl_i])
+
+                elif 14 <= cell <= 26:
+                    new_row.append(girls[girl_i])
                     girl_i += 1
+
                 else:
-                    row_result.append("")
-            result.append(row_result)
+                    new_row.append(0)
 
-        if saved_seats is None:
-            break
+            result.append(new_row)
+        st.session_state.current_result = result
 
-        same_count = 0
-        total = 0
+if "current_result" in st.session_state:
+    st.write("現在の席（結果）")
+    render_table(st.session_state.current_result)
 
-        for i in range(len(result)):
-            for j in range(len(result[i])):
-                total += 1
-                if result[i][j] == saved_seats[i][j]:
-                    same_count += 1
 
-        if same_count < 5:
-            break
+if st.button("保存"):
+    if "current_result" in st.session_state:
+        save_data(st.session_state.current_result)
+        st.success("保存した")
 
-    
-    st.session_state.current_result = result
 
-if st.session_state.current_result:
-    st.write("現在の席")
-    st.table(st.session_state.current_result)
-
-if st.button("この席を保存"):
-    if st.session_state.current_result:
-        with open("seats.json", "w") as f:
-            json.dump(st.session_state.current_result, f)
-        st.success("保存しました！")
+if st.button("リセット"):
+    if os.path.exists("seats.json"):
+        os.remove("seats.json")
+    st.session_state.current_result = None
+    st.success("リセットした")
