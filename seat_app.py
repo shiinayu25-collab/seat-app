@@ -99,11 +99,13 @@ else:
 
     st.write("現在の席")
     render_table(seat_layout)
-
-fixed = st.multiselect(
-    "固定したい番号",
-    list(range(1, 27))
+    
+fixed_positions = st.multiselect(
+    "固定したい席（行-列）",
+    [(i, j) for i in range(ROWS) for j in range(COLS)]
 )
+fixed_positions = set(fixed_positions)
+
 
 if seat_layout:
 
@@ -115,18 +117,35 @@ if seat_layout:
 
     if st.button("席替えする"):
 
+        boys = list(range(1, 14))
+        girls = list(range(14, 27))
+
+        fixed_values = {
+        seat_layout[i][j]
+        for (i, j) in fixed_positions
+        if seat_layout[i][j] != 0
+    }
+        boys = [b for b in boys if b not in fixed_values]
+        girls = [g for g in girls if g not in fixed_values]
+
+        random.shuffle(boys)
+        random.shuffle(girls)
+
         boy_i = 0
         girl_i = 0
+
         result = []
 
-        for row in seat_layout:
+        for i, row in enumerate(seat_layout):
             new_row = []
 
-            for cell in row:
-                if cell in fixed:
-                    new_row.append(cell)
+            for j, cell in enumerate(row):
 
-                elif 1 <= cell <= 13:
+                if (i, j) in fixed_positions:
+                    new_row.append(cell)
+                    continue
+
+                if 1 <= cell <= 13:
                     new_row.append(boys[boy_i])
                     boy_i += 1
 
@@ -138,6 +157,7 @@ if seat_layout:
                     new_row.append(0)
 
             result.append(new_row)
+
         st.session_state.current_result = result
 
 if "current_result" in st.session_state:
