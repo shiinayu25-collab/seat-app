@@ -120,6 +120,8 @@ if seat_layout:
         boys = list(range(1, 14))
         girls = list(range(14, 27))
 
+        previous = saved_seats if saved_seats else []
+
         fixed_values = {
         seat_layout[i][j]
         for (i, j) in fixed_positions
@@ -141,17 +143,45 @@ if seat_layout:
 
             for j, cell in enumerate(row):
 
-                if (i, j) in fixed_positions:
+                if (i,j) in fixed_positions:
                     new_row.append(cell)
                     continue
 
+
                 if 1 <= cell <= 13:
-                    new_row.append(boys[boy_i])
-                    boy_i += 1
+
+                    choices = [
+                        b for b in boys
+                        if not previous 
+                        or previous[i][j] != b
+                    ]
+
+                    if not choices:
+                        choices = boys
+
+                    value = random.choice(choices)
+                    boys.remove(value)
+
+                    new_row.append(value)
+
 
                 elif 14 <= cell <= 26:
-                    new_row.append(girls[girl_i])
-                    girl_i += 1
+
+                    choices = [
+                        g for g in girls
+                        if not previous
+                        or previous[i][j] != g
+                    ]
+
+                    if not choices:
+                        choices = girls
+
+
+                    value = random.choice(choices)
+                    girls.remove(value)
+
+                    new_row.append(value)
+
 
                 else:
                     new_row.append(0)
@@ -168,11 +198,14 @@ if "current_result" in st.session_state:
 if st.button("保存"):
     if "current_result" in st.session_state:
         save_data(st.session_state.current_result)
-        st.success("保存した")
-
+        st.success("席替え結果を保存した")
+    elif seat_layout:
+        save_data(seat_layout)
+        st.success("編集した席を保存した")
 
 if st.button("リセット"):
     if os.path.exists("seats.json"):
         os.remove("seats.json")
     st.session_state.current_result = None
     st.success("リセットした")
+
